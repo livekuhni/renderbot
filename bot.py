@@ -7,61 +7,88 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
-REPLICATE_TOKEN = os.environ["REPLICATE_API_TOKEN"]
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-async def generate_realistic(image_base64: str) -> str:
-    async with httpx.AsyncClient(timeout=30) as client:
+SYSTEM_PROMPT = """You are an expert interior designer and architectural photographer. 
+Analyze the 3D render from Pro100 furniture design software and create a detailed prompt 
+for DALL-E 3 to generate a photorealistic version of the EXACT SAME room.
+
+Your prompt must:
+1. Describe the exact room layout, furniture positions and configuration
+2. Describe every piece of furniture with exact colors and materials
+3. Specify realistic lighting (natural daylight, shadows)
+4. Include photorealistic materials (wood grain, fabric texture, metal, glass)  
+5. Mention professional interior photography style, 8k resolution
+6. Keep the SAME viewpoint/angle as the original render
+
+Return ONLY the prompt text in English, 150-200 words. Nothing else."""
+
+async def analyze_with_gpt4(image_base64: str) -> str:
+    async with httpx.AsyncClient(timeout=60) as client:
         response = await client.post(
-            "https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro/predictions",
+            "https://api.openai.com/v1/chat/completions",
             headers={
-                "Authorization": f"Bearer {REPLICATE_TOKEN}",
-                "Content-Type": "application/json",
+                "Authorization": f"Bearer {OPENAI_API_KEY}",
+                "Content-Type": "application/json"
             },
             json={
-                "input": {
-                    "prompt": "photorealistic interior design photo, professional photography, 8k, natural lighting, realistic wood, realistic materials, exact same room layout and furniture",
-                    "image": f"data:image/jpeg;base64,{image_base64}",
-                    "prompt_strength": 0.15,
-                    "num_inference_steps": 30,
-                    "guidance_scale": 2.5,
-                    "output_format": "jpg",
-                    "output_quality": 95
-                }
+                "model": "gpt-4o",
+                "max_tokens": 500,
+                "messages": [{
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_base64}"
+                            }
+                        },
+                        {
+                            "type": "text",
+                            "text": SYSTEM_PROMPT
+                        }
+                    ]
+                }]
             }
         )
-        prediction = response.json()
-        logger.info(f"Response: {prediction}")
-        prediction_id = prediction.get("id")
+        data = response.json()
+        logger.info(f"GPT response: {data}")
+        return data["choices"][0]["message"]["content"]
 
-        if not prediction_id:
-            raise Exception(f"Ошибка запуска: {prediction}")
-
-        for _ in range(60):
-            await asyncio.sleep(3)
-            async with httpx.AsyncClient(timeout=30) as poll_client:
-                poll = await poll_client.get(
-                    f"https://api.replicate.com/v1/predictions/{prediction_id}",
-                    headers={"Authorization": f"Bearer {REPLICATE_TOKEN}"}
-                )
-                result = poll.json()
-                status = result.get("status")
-                logger.info(f"Status: {status}")
-
-                if status == "succeeded":
-                    output = result.get("output")
-                    return output[0] if isinstance(output, list) else output
-                elif status == "failed":
-                    raise Exception(f"Ошибка: {result.get('error')}")
-
-        raise Exception("Превышено время ожидания")
+async def generate_with_dalle(prompt: str) -> str:
+    async with httpx.AsyncClient(timeout=120) as client:
+        response = await client.post(
+            "https://api.openai.com/v1/images/generations",
+            headers={
+                "Authorization": f"Bearer {OPENAI_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "dall-e-3",
+                "prompt": prompt,
+                "n": 1,
+                "size": "1792x1024",
+                "quality": "hd",
+                "style": "natural"
+            }
+        )
+        data = response.json()
+        logger.info(f"DALL-E response: {data}")
+        return data["data"][0]["url"]
 
 async def process_image(update: Update, image_bytes: bytearray, msg):
     image_base64 = base64.b64encode(image_bytes).decode("utf-8")
-    await msg.edit_text("🎨 Делаю фотореалистичным... (~30-60 сек)")
-    image_url = await generate_realistic(image_base64)
+    
+    await msg.edit_text("🔍 Анализирую рендер...")
+    prompt = await analyze_with_gpt4(image_base64)
+    logger.info(f"Промпт: {prompt}")
+    
+    await msg.edit_text("🎨 Генерирую фотореалистичную версию... (~30 сек)")
+    image_url = await generate_with_dalle(prompt)
+    
     await msg.edit_text("✅ Готово!")
     await update.message.reply_photo(
         photo=image_url,
@@ -70,8 +97,8 @@ async def process_image(update: Update, image_bytes: bytearray, msg):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 Привет! Отправь рендер из Pro100 — сделаю фотореалистичным.\n\n"
-        "📤 Отправь фото — результат через ~30-60 секунд."
+        "👋 Привет! Отправь рендер из Pro100 — GPT-4o проанализирует его и DALL-E создаст фотореалистичную версию.\n\n"
+        "📤 Отправь фото — результат через ~40 секунд."
     )
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
