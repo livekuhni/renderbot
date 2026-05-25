@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 async def generate_realistic(image_base64: str) -> str:
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.post(
-            "https://api.replicate.com/v1/models/stability-ai/stable-diffusion-img2img/predictions",
+            "https://api.replicate.com/v1/models/pharmapsychotic/realvisxl-v3-multi-controlnet-lora/predictions",
             headers={
                 "Authorization": f"Bearer {REPLICATE_TOKEN}",
                 "Content-Type": "application/json",
@@ -23,12 +23,14 @@ async def generate_realistic(image_base64: str) -> str:
             json={
                 "input": {
                     "image": f"data:image/jpeg;base64,{image_base64}",
-                    "prompt": "photorealistic kitchen interior, professional photography, 8k resolution, natural lighting, realistic wood cabinets, realistic countertops, same room layout and furniture positions",
-                    "negative_prompt": "cartoon, 3d render, cgi, illustration, drawing, blurry, low quality, deformed",
-                    "guidance_scale": 12,
-                    "num_inference_steps": 50,
-                    "strength": 0.45,
-                    "scheduler": "DPMSolverMultistep"
+                    "prompt": "photorealistic interior design, professional architectural photography, 8k, natural lighting, realistic materials, same room layout",
+                    "negative_prompt": "cartoon, 3d render, cgi, illustration, blurry, low quality, unrealistic",
+                    "prompt_strength": 0.4,
+                    "num_inference_steps": 40,
+                    "guidance_scale": 7.5,
+                    "scheduler": "DPMSolverMultistep",
+                    "num_outputs": 1,
+                    "apply_watermark": False
                 }
             }
         )
@@ -60,7 +62,7 @@ async def generate_realistic(image_base64: str) -> str:
 
 async def process_image(update: Update, image_bytes: bytearray, msg):
     image_base64 = base64.b64encode(image_bytes).decode("utf-8")
-    await msg.edit_text("🎨 Делаю фотореалистичным... (~60 сек)")
+    await msg.edit_text("🎨 Делаю фотореалистичным... (~30-60 сек)")
     image_url = await generate_realistic(image_base64)
     await msg.edit_text("✅ Готово!")
     await update.message.reply_photo(
@@ -71,7 +73,7 @@ async def process_image(update: Update, image_bytes: bytearray, msg):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 Привет! Отправь рендер из Pro100 — сделаю фотореалистичным.\n\n"
-        "📤 Отправь фото — результат через ~60 секунд."
+        "📤 Отправь фото — результат через ~30-60 секунд."
     )
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -108,4 +110,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
