@@ -15,22 +15,20 @@ logger = logging.getLogger(__name__)
 async def generate_realistic(image_base64: str) -> str:
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.post(
-            "https://api.replicate.com/v1/models/pharmapsychotic/realvisxl-v3-multi-controlnet-lora/predictions",
+            "https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro/predictions",
             headers={
                 "Authorization": f"Bearer {REPLICATE_TOKEN}",
                 "Content-Type": "application/json",
             },
             json={
                 "input": {
+                    "prompt": "photorealistic interior design photo, professional photography, 8k, natural lighting, realistic wood, realistic materials, exact same room layout and furniture",
                     "image": f"data:image/jpeg;base64,{image_base64}",
-                    "prompt": "photorealistic interior design, professional architectural photography, 8k, natural lighting, realistic materials, same room layout",
-                    "negative_prompt": "cartoon, 3d render, cgi, illustration, blurry, low quality, unrealistic",
-                    "prompt_strength": 0.4,
-                    "num_inference_steps": 40,
-                    "guidance_scale": 7.5,
-                    "scheduler": "DPMSolverMultistep",
-                    "num_outputs": 1,
-                    "apply_watermark": False
+                    "prompt_strength": 0.15,
+                    "num_inference_steps": 30,
+                    "guidance_scale": 2.5,
+                    "output_format": "jpg",
+                    "output_quality": 95
                 }
             }
         )
