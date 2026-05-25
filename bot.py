@@ -13,10 +13,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 PHOTO_PROMPT = (
-    "photorealistic interior design photography, 8k ultra detailed, "
-    "professional architectural photography, natural lighting, soft shadows, "
-    "realistic wood textures, fabric materials, glass reflections, "
-    "depth of field, shot with Canon EOS R5, highly detailed furniture"
+    "photorealistic interior design photography, same room layout and furniture placement as input image, "
+    "keep exact same kitchen design and cabinet positions, "
+    "8k ultra detailed, professional architectural photography, "
+    "natural lighting from windows, soft shadows, realistic wood textures, "
+    "realistic materials, depth of field, Canon EOS R5"
 )
 
 async def generate_with_flux(image_base64: str) -> str:
@@ -31,9 +32,9 @@ async def generate_with_flux(image_base64: str) -> str:
                 "input": {
                     "prompt": PHOTO_PROMPT,
                     "image": f"data:image/jpeg;base64,{image_base64}",
-                    "prompt_strength": 0.7,
-                    "num_inference_steps": 28,
-                    "guidance_scale": 3.5,
+                    "prompt_strength": 0.35,
+                    "num_inference_steps": 30,
+                    "guidance_scale": 2.5,
                     "output_format": "jpg",
                     "output_quality": 95
                 }
@@ -65,7 +66,7 @@ async def generate_with_flux(image_base64: str) -> str:
 
 async def process_image(update: Update, image_bytes: bytearray, msg):
     image_base64 = base64.b64encode(image_bytes).decode("utf-8")
-    await msg.edit_text("🎨 Генерирую фотореалистичную версию... (~30-60 сек)")
+    await msg.edit_text("🎨 Делаю фотореалистичным... (~30-60 сек)")
     image_url = await generate_with_flux(image_base64)
     await msg.edit_text("✅ Готово!")
     await update.message.reply_photo(
