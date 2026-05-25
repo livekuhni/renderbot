@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 async def generate_realistic(image_base64: str) -> str:
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.post(
-            "https://api.replicate.com/v1/models/adirik/interior-design/predictions",
+            "https://api.replicate.com/v1/models/stability-ai/stable-diffusion-img2img/predictions",
             headers={
                 "Authorization": f"Bearer {REPLICATE_TOKEN}",
                 "Content-Type": "application/json",
@@ -23,16 +23,17 @@ async def generate_realistic(image_base64: str) -> str:
             json={
                 "input": {
                     "image": f"data:image/jpeg;base64,{image_base64}",
-                    "prompt": "photorealistic interior, professional photography, 8k, natural lighting, realistic materials, same furniture layout",
-                    "negative_prompt": "cartoon, 3d render, illustration, blurry, low quality",
-                    "guidance_scale": 15,
+                    "prompt": "photorealistic kitchen interior, professional photography, 8k resolution, natural lighting, realistic wood cabinets, realistic countertops, same room layout and furniture positions",
+                    "negative_prompt": "cartoon, 3d render, cgi, illustration, drawing, blurry, low quality, deformed",
+                    "guidance_scale": 12,
                     "num_inference_steps": 50,
-                    "strength": 0.8
+                    "strength": 0.45,
+                    "scheduler": "DPMSolverMultistep"
                 }
             }
         )
         prediction = response.json()
-        logger.info(f"Replicate response: {prediction}")
+        logger.info(f"Response: {prediction}")
         prediction_id = prediction.get("id")
 
         if not prediction_id:
@@ -53,7 +54,7 @@ async def generate_realistic(image_base64: str) -> str:
                     output = result.get("output")
                     return output[0] if isinstance(output, list) else output
                 elif status == "failed":
-                    raise Exception(f"Ошибка генерации: {result.get('error')}")
+                    raise Exception(f"Ошибка: {result.get('error')}")
 
         raise Exception("Превышено время ожидания")
 
@@ -107,3 +108,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
