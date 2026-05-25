@@ -1,3 +1,4 @@
+import os
 import logging
 import asyncio
 import httpx
@@ -5,9 +6,8 @@ import base64
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-# === НАСТРОЙКИ ===
-TELEGRAM_TOKEN = "8918710748:AAFtB5jPkKZIsm2cuk6qPc-gi7vatHfrNBU"
-REPLICATE_TOKEN = "r8_XaP0D36F0HdiR9a7esMDlxmDttxkDAV26Uicc"
+TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
+REPLICATE_TOKEN = os.environ["REPLICATE_API_TOKEN"]
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger(__name__)
