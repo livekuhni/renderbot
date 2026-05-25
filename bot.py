@@ -12,35 +12,27 @@ REPLICATE_TOKEN = os.environ["REPLICATE_API_TOKEN"]
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-PHOTO_PROMPT = (
-    "photorealistic interior design photography, same room layout and furniture placement as input image, "
-    "keep exact same kitchen design and cabinet positions, "
-    "8k ultra detailed, professional architectural photography, "
-    "natural lighting from windows, soft shadows, realistic wood textures, "
-    "realistic materials, depth of field, Canon EOS R5"
-)
-
-async def generate_with_flux(image_base64: str) -> str:
+async def generate_realistic(image_base64: str) -> str:
     async with httpx.AsyncClient(timeout=30) as client:
         response = await client.post(
-            "https://api.replicate.com/v1/models/black-forest-labs/flux-1.1-pro/predictions",
+            "https://api.replicate.com/v1/models/adirik/interior-design/predictions",
             headers={
                 "Authorization": f"Bearer {REPLICATE_TOKEN}",
                 "Content-Type": "application/json",
             },
             json={
                 "input": {
-                    "prompt": PHOTO_PROMPT,
                     "image": f"data:image/jpeg;base64,{image_base64}",
-                    "prompt_strength": 0.35,
-                    "num_inference_steps": 30,
-                    "guidance_scale": 2.5,
-                    "output_format": "jpg",
-                    "output_quality": 95
+                    "prompt": "photorealistic interior, professional photography, 8k, natural lighting, realistic materials, same furniture layout",
+                    "negative_prompt": "cartoon, 3d render, illustration, blurry, low quality",
+                    "guidance_scale": 15,
+                    "num_inference_steps": 50,
+                    "strength": 0.8
                 }
             }
         )
         prediction = response.json()
+        logger.info(f"Replicate response: {prediction}")
         prediction_id = prediction.get("id")
 
         if not prediction_id:
@@ -55,6 +47,7 @@ async def generate_with_flux(image_base64: str) -> str:
                 )
                 result = poll.json()
                 status = result.get("status")
+                logger.info(f"Status: {status}")
 
                 if status == "succeeded":
                     output = result.get("output")
@@ -62,12 +55,12 @@ async def generate_with_flux(image_base64: str) -> str:
                 elif status == "failed":
                     raise Exception(f"Ошибка генерации: {result.get('error')}")
 
-        raise Exception("Превышено время ожидания (3 минуты)")
+        raise Exception("Превышено время ожидания")
 
 async def process_image(update: Update, image_bytes: bytearray, msg):
     image_base64 = base64.b64encode(image_bytes).decode("utf-8")
-    await msg.edit_text("🎨 Делаю фотореалистичным... (~30-60 сек)")
-    image_url = await generate_with_flux(image_base64)
+    await msg.edit_text("🎨 Делаю фотореалистичным... (~60 сек)")
+    image_url = await generate_realistic(image_base64)
     await msg.edit_text("✅ Готово!")
     await update.message.reply_photo(
         photo=image_url,
@@ -76,8 +69,8 @@ async def process_image(update: Update, image_bytes: bytearray, msg):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 Привет! Отправь мне рендер из Pro100 и я сделаю его фотореалистичным.\n\n"
-        "📤 Просто отправь фото — результат через ~30-60 секунд."
+        "👋 Привет! Отправь рендер из Pro100 — сделаю фотореалистичным.\n\n"
+        "📤 Отправь фото — результат через ~60 секунд."
     )
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -102,7 +95,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             await msg.edit_text(f"❌ Ошибка: {str(e)}")
     else:
-        await update.message.reply_text("⚠️ Отправь изображение в формате PNG или JPG.")
+        await update.message.reply_text("⚠️ Отправь изображение PNG или JPG.")
 
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
