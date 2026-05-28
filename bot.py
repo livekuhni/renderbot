@@ -13,6 +13,8 @@ OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger(__name__)
  
+ALLOWED_USERS = {568762752, 6685132201}
+ 
 EDIT_PROMPT = (
     "Transform this 3D furniture render into a photorealistic interior photo. "
     "Keep EXACTLY the same layout, furniture positions, colors, materials as in the original image. "
@@ -66,6 +68,10 @@ async def process_image(update: Update, image_bytes: bytearray, msg):
     )
  
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ALLOWED_USERS:
+        await update.message.reply_text("У вас нет доступа к этому боту.")
+        return
     await update.message.reply_text(
         "Привет! Отправь рендер из Pro100.\n\n"
         "ИИ сделает фотореалистичную версию.\n\n"
@@ -73,6 +79,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
  
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ALLOWED_USERS:
+        await update.message.reply_text("У вас нет доступа к этому боту.")
+        return
     msg = await update.message.reply_text("Получил рендер, обрабатываю...")
     try:
         photo = update.message.photo[-1]
@@ -84,6 +94,10 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.edit_text(f"Ошибка: {str(e)}\n\nПопробуй ещё раз.")
  
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ALLOWED_USERS:
+        await update.message.reply_text("У вас нет доступа к этому боту.")
+        return
     doc = update.message.document
     if doc.mime_type and doc.mime_type.startswith("image/"):
         msg = await update.message.reply_text("Получил файл, обрабатываю...")
