@@ -1,4 +1,3 @@
-
 import os
 import logging
 import asyncio
@@ -96,10 +95,11 @@ async def generate_with_dalle(description: str) -> str:
                 "Content-Type": "application/json"
             },
             json={
-                "model": "dall-e-2",
+                "model": "gpt-image-1",
                 "prompt": prompt,
                 "n": 1,
                 "size": "1024x1024",
+                "quality": "medium",
                 
             }
         )
