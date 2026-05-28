@@ -78,8 +78,7 @@ async def edit_with_gpt4o(image_bytes: bytearray) -> bytes:
             raise Exception(f"Неизвестный формат: {list(item.keys())}")
  
 async def process_image(update: Update, image_bytes: bytearray, msg):
-    await msg.edit_text("🎨 GPT-4o делает фотореалистичную версию...
-⏳ Это занимает 2-3 минуты, пожалуйста подожди!")
+    await msg.edit_text("Генерирую фотореалистичную версию... Это занимает 2-3 минуты, подожди!")
     image_data = await edit_with_gpt4o(image_bytes)
     await msg.edit_text("✅ Готово!")
     await update.message.reply_photo(
