@@ -28,7 +28,7 @@ EDIT_PROMPT = """На основе этого изображения из PRO100
 async def edit_with_gpt4o(image_bytes: bytearray) -> bytes:
     image_base64 = base64.b64encode(image_bytes).decode("utf-8")
     
-    async with httpx.AsyncClient(timeout=120) as client:
+    async with httpx.AsyncClient(timeout=300) as client:
         response = await client.post(
             "https://api.openai.com/v1/images/edits",
             headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
@@ -57,7 +57,8 @@ async def edit_with_gpt4o(image_bytes: bytearray) -> bytes:
             raise Exception(f"Неизвестный формат: {list(item.keys())}")
  
 async def process_image(update: Update, image_bytes: bytearray, msg):
-    await msg.edit_text("🎨 GPT-4o делает фотореалистичную версию... (~30-60 сек)")
+    await msg.edit_text("🎨 GPT-4o делает фотореалистичную версию...
+⏳ Это занимает 2-3 минуты, пожалуйста подожди!")
     image_data = await edit_with_gpt4o(image_bytes)
     await msg.edit_text("✅ Готово!")
     await update.message.reply_photo(
