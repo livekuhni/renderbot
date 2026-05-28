@@ -39,8 +39,8 @@ async def edit_with_gpt4o(image_bytes: bytearray) -> bytes:
                 "model": "gpt-image-1",
                 "prompt": EDIT_PROMPT,
                 "n": "1",
-                "size": "1024x1024",
-                "quality": "medium"
+                "size": "1536x1024",
+                "quality": "high"
             }
         )
         data = response.json()
