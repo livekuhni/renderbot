@@ -14,19 +14,19 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger(__name__)
  
 EDIT_PROMPT = (
-    "Transform this 3D kitchen render into a photorealistic interior photo. "
-    "Keep EXACTLY the same layout, cabinet positions, colors, materials and all furniture as in the original image. "
-    "Make all surfaces photorealistic: wood grain, matte/gloss finishes, metal, glass, stone. "
-    "Realistic backsplash tiles with correct grout lines and scale. "
+    "Transform this 3D furniture render into a photorealistic interior photo. "
+    "Keep EXACTLY the same layout, furniture positions, colors, materials as in the original image. "
+    "Make all surfaces photorealistic: wood grain, matte/gloss finishes, metal, glass, stone, fabric. "
+    "Realistic backwall/backsplash with correct scale and texture. "
     "Chrome/metal hardware with natural reflections. "
-    "Built-in appliances look like real branded appliances. "
+    "All built-in elements and appliances look like real branded products. "
     "Natural daylight from window with soft shadows. "
-    "Warm LED strip lighting under upper cabinets illuminating worktop. "
+    "Warm LED strip lighting if present in original. "
     "Realistic ambient light, no harsh overexposure. "
     "Same angle and perspective as original. 24-28mm focal length, eye level. "
-    "Add minimal tasteful decor: 1-2 small plants or fruit bowl. "
-    "Ultra photorealistic, looks like professional interior photography for premium kitchen catalog. "
-    "Same kitchen, just photorealistic."
+    "Add minimal tasteful decor if appropriate. "
+    "Ultra photorealistic, looks like professional interior photography for premium furniture catalog. "
+    "Same furniture and layout, just photorealistic."
 )
  
 async def edit_with_gpt4o(image_bytes: bytearray) -> bytes:
@@ -39,7 +39,7 @@ async def edit_with_gpt4o(image_bytes: bytearray) -> bytes:
                 "model": "gpt-image-1",
                 "prompt": EDIT_PROMPT,
                 "n": "1",
-                "size": "1024x1024",
+                "size": "1536x1024",
                 "quality": "medium"
             }
         )
@@ -62,12 +62,12 @@ async def process_image(update: Update, image_bytes: bytearray, msg):
     await msg.edit_text("Готово!")
     await update.message.reply_photo(
         photo=io.BytesIO(image_data),
-        caption="Фотореалистичный рендер кухни готов!"
+        caption="Фотореалистичный рендер готов!"
     )
  
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Привет! Отправь рендер кухни из Pro100.\n\n"
+        "Привет! Отправь рендер из Pro100.\n\n"
         "ИИ сделает фотореалистичную версию.\n\n"
         "Просто отправь фото - результат через 2-3 минуты."
     )
