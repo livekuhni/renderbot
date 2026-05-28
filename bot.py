@@ -13,17 +13,38 @@ OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger(__name__)
  
-EDIT_PROMPT = """На основе этого изображения из PRO100 создай фотореалистичную визуализацию кухни, полностью сохранив размеры, компоновку, фасады, расположение техники и модулей.
+EDIT_PROMPT = """Based on the uploaded PRO100 image, create a photorealistic visualization of the kitchen, fully preserving the dimensions, layout, facades, appliance placement and modules.
  
-- Реалистичный фартук (плитка) с правильным масштабом
-- Металлическая фурнитура с мягкими отражениями
-- Встроенная техника выглядит как реальная
-- Дневной естественный свет из окна
-- Мягкая подсветка рабочей зоны (LED под верхними шкафами)
-- Реалистичные тени и отражения
-- Фокусное расстояние 24-30 мм, камера на уровне глаз
-- Максимальный фотореализм, современный премиум вид
-- Картинка выглядит как фото из салона кухонь премиум-класса"""
+Materials and furniture:
+- Realistic kitchen facades with correct textures and finishes
+- Correct countertop texture and realistic backsplash with proper scale
+- Metal hardware with soft reflections (handles, hinges, appliances)
+- Built-in appliances look real (oven, hob, hood)
+- Handles must be EXACTLY in the same position and EXACTLY the same shape as in the original image
+ 
+Lighting:
+- Natural daylight from window
+- Soft LED underlighting of work zone under upper cabinets (if present in original)
+- Realistic shadows and reflections
+- Global illumination, no overexposure or flat lighting
+ 
+Camera:
+- 24-30mm focal length
+- Correct perspective without distortion or tilt
+- Camera at human eye level
+- Sharp geometry without distortions
+ 
+Detail:
+- Sharp edges, visible gaps between facades
+- Slight surface imperfection (microtexture)
+- Neat but lived-in kitchen (add tasteful decor: small plant, fruit bowl, or cutting board)
+ 
+Final:
+- Maximum photorealism
+- Modern, premium expensive look
+- Image looks like a photo from a premium kitchen showroom
+- Ultra quality, photorealistic render
+- IMPORTANT: Keep EXACTLY the same layout, cabinet count, colors and proportions as the original"""
  
 async def edit_with_gpt4o(image_bytes: bytearray) -> bytes:
     image_base64 = base64.b64encode(image_bytes).decode("utf-8")
@@ -40,7 +61,7 @@ async def edit_with_gpt4o(image_bytes: bytearray) -> bytes:
                 "prompt": EDIT_PROMPT,
                 "n": "1",
                 "size": "1536x1024",
-                "quality": "high"
+                "quality": "medium"
             }
         )
         data = response.json()
