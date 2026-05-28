@@ -1,3 +1,4 @@
+
 import os
 import logging
 import asyncio
@@ -100,7 +101,6 @@ async def generate_with_dalle(description: str) -> str:
                 "n": 1,
                 "size": "1792x1024",
                 "quality": "hd",
-                "style": "natural"
             }
         )
         data = response.json()
