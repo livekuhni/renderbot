@@ -13,111 +13,52 @@ OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger(__name__)
  
-ANALYSIS_PROMPT = """Analyze this 3D kitchen render from PRO100 software in detail.
-Describe precisely:
-1. Exact cabinet layout, positions and dimensions
-2. All facade colors, materials and finishes
-3. Appliances positions (oven, hob, hood, fridge)
-4. Hardware (handles, hinges) style and color
-5. Countertop material and color
-6. Backsplash style
-7. Room dimensions and camera angle
-8. Any unique design elements
+EDIT_PROMPT = """На основе этого изображения из PRO100 создай фотореалистичную визуализацию кухни, полностью сохранив размеры, компоновку, фасады, расположение техники и модулей.
  
-Return ONLY a detailed description in English, 200 words max."""
+- Реалистичный фартук (плитка) с правильным масштабом
+- Металлическая фурнитура с мягкими отражениями
+- Встроенная техника выглядит как реальная
+- Дневной естественный свет из окна
+- Мягкая подсветка рабочей зоны (LED под верхними шкафами)
+- Реалистичные тени и отражения
+- Фокусное расстояние 24-30 мм, камера на уровне глаз
+- Максимальный фотореализм, современный премиум вид
+- Картинка выглядит как фото из салона кухонь премиум-класса"""
  
-DALLE_PROMPT_TEMPLATE = """Photorealistic kitchen visualization based on this layout: {description}
- 
-Requirements:
-- Fully preserve the original layout, cabinet positions, facades and appliances from the source image
-- Realistic backsplash (tile) with correct scale
-- Metal hardware with soft reflections (handles, hinges, appliances)
-- Built-in appliances look real (oven, hob, hood)
- 
-Lighting:
-- Natural daylight from window
-- Soft LED underlighting of work zone under upper cabinets
-- Realistic shadows and reflections
-- Global illumination, no overexposure or flat lighting
- 
-Camera:
-- 24-30mm focal length
-- Correct perspective without distortion
-- Camera at human eye level
-- Sharp geometry without distortion
- 
-Final result:
-- Maximum photorealism
-- Modern, premium look
-- Image looks like a photo from a premium kitchen showroom
-- Ultra quality, photorealistic render"""
- 
-async def analyze_with_gpt4(image_base64: str) -> str:
-    async with httpx.AsyncClient(timeout=60) as client:
+async def edit_with_gpt4o(image_bytes: bytearray) -> bytes:
+    image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+    
+    async with httpx.AsyncClient(timeout=120) as client:
         response = await client.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENAI_API_KEY}",
-                "Content-Type": "application/json"
+            "https://api.openai.com/v1/images/edits",
+            headers={"Authorization": f"Bearer {OPENAI_API_KEY}"},
+            files={
+                "image": ("image.png", bytes(image_bytes), "image/png"),
             },
-            json={
-                "model": "gpt-4o",
-                "max_tokens": 500,
-                "messages": [{
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}
-                        },
-                        {"type": "text", "text": ANALYSIS_PROMPT}
-                    ]
-                }]
-            }
-        )
-        data = response.json()
-        logger.info(f"GPT4 response: {data}")
-        if "error" in data:
-            raise Exception(f"GPT-4o ошибка: {data['error']['message']}")
-        return data["choices"][0]["message"]["content"]
- 
-async def generate_with_dalle(description: str) -> bytes:
-    prompt = DALLE_PROMPT_TEMPLATE.format(description=description)
-    async with httpx.AsyncClient(timeout=60) as client:
-        response = await client.post(
-            "https://api.openai.com/v1/images/generations",
-            headers={
-                "Authorization": f"Bearer {OPENAI_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "dall-e-3",
-                "prompt": prompt,
-                "n": 1,
+            data={
+                "model": "gpt-image-1",
+                "prompt": EDIT_PROMPT,
+                "n": "1",
                 "size": "1024x1024",
-                "quality": "standard"
+                "quality": "medium"
             }
         )
         data = response.json()
-        logger.info(f"DALLE response keys: {list(data.keys())}")
+        logger.info(f"Edit response: {data}")
         if "error" in data:
-            raise Exception(f"DALL-E ошибка: {data['error']['message']}")
+            raise Exception(f"Ошибка: {data['error']['message']}")
         item = data["data"][0]
-        if "url" in item:
-            img_response = await client.get(item["url"])
-            return img_response.content
-        elif "b64_json" in item:
+        if "b64_json" in item:
             return base64.b64decode(item["b64_json"])
+        elif "url" in item:
+            img_resp = await client.get(item["url"])
+            return img_resp.content
         else:
             raise Exception(f"Неизвестный формат: {list(item.keys())}")
  
 async def process_image(update: Update, image_bytes: bytearray, msg):
-    image_base64 = base64.b64encode(image_bytes).decode("utf-8")
-    await msg.edit_text("🔍 GPT-4o анализирует планировку кухни...")
-    description = await analyze_with_gpt4(image_base64)
-    logger.info(f"Описание: {description}")
-    await msg.edit_text("🎨 Генерирую фотореалистичную версию... (~30 сек)")
-    image_data = await generate_with_dalle(description)
+    await msg.edit_text("🎨 GPT-4o делает фотореалистичную версию... (~30-60 сек)")
+    image_data = await edit_with_gpt4o(image_bytes)
     await msg.edit_text("✅ Готово!")
     await update.message.reply_photo(
         photo=io.BytesIO(image_data),
@@ -127,8 +68,7 @@ async def process_image(update: Update, image_bytes: bytearray, msg):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 Привет! Отправь рендер кухни из Pro100.\n\n"
-        "🔍 GPT-4o проанализирует планировку\n"
-        "🎨 ИИ создаст фотореалистичную версию\n\n"
+        "🎨 GPT-4o сделает фотореалистичную версию сохранив планировку\n\n"
         "📤 Просто отправь фото — результат через ~40 секунд."
     )
  
