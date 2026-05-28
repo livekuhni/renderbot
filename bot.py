@@ -83,7 +83,7 @@ async def analyze_with_gpt4(image_base64: str) -> str:
  
 async def generate_with_dalle(description: str) -> bytes:
     prompt = DALLE_PROMPT_TEMPLATE.format(description=description)
-    async with httpx.AsyncClient(timeout=120) as client:
+    async with httpx.AsyncClient(timeout=60) as client:
         response = await client.post(
             "https://api.openai.com/v1/images/generations",
             headers={
@@ -91,11 +91,11 @@ async def generate_with_dalle(description: str) -> bytes:
                 "Content-Type": "application/json"
             },
             json={
-                "model": "gpt-image-1",
+                "model": "dall-e-3",
                 "prompt": prompt,
                 "n": 1,
                 "size": "1024x1024",
-                "quality": "medium"
+                "quality": "standard"
             }
         )
         data = response.json()
