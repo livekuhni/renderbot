@@ -3,6 +3,7 @@ import logging
 import asyncio
 import httpx
 import base64
+import io
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
  
@@ -45,11 +46,6 @@ Camera:
 - Camera at human eye level
 - Sharp geometry without distortion
  
-Detail:
-- Sharp edges, gaps between facades
-- Slight surface imperfection (microtexture)
-- Neat but "lived-in" kitchen (minimal decor)
- 
 Final result:
 - Maximum photorealism
 - Modern, premium look
@@ -85,7 +81,7 @@ async def analyze_with_gpt4(image_base64: str) -> str:
             raise Exception(f"GPT-4o ошибка: {data['error']['message']}")
         return data["choices"][0]["message"]["content"]
  
-async def generate_with_dalle(description: str) -> str:
+async def generate_with_dalle(description: str) -> bytes:
     prompt = DALLE_PROMPT_TEMPLATE.format(description=description)
     async with httpx.AsyncClient(timeout=120) as client:
         response = await client.post(
@@ -99,26 +95,32 @@ async def generate_with_dalle(description: str) -> str:
                 "prompt": prompt,
                 "n": 1,
                 "size": "1024x1024",
-                "quality": "medium",
-                
+                "quality": "medium"
             }
         )
         data = response.json()
-        logger.info(f"DALLE response: {data}")
+        logger.info(f"DALLE response keys: {list(data.keys())}")
         if "error" in data:
             raise Exception(f"DALL-E ошибка: {data['error']['message']}")
-        return data["data"][0]["url"]
+        item = data["data"][0]
+        if "url" in item:
+            img_response = await client.get(item["url"])
+            return img_response.content
+        elif "b64_json" in item:
+            return base64.b64decode(item["b64_json"])
+        else:
+            raise Exception(f"Неизвестный формат: {list(item.keys())}")
  
 async def process_image(update: Update, image_bytes: bytearray, msg):
     image_base64 = base64.b64encode(image_bytes).decode("utf-8")
     await msg.edit_text("🔍 GPT-4o анализирует планировку кухни...")
     description = await analyze_with_gpt4(image_base64)
     logger.info(f"Описание: {description}")
-    await msg.edit_text("🎨 DALL-E 3 генерирует фотореалистичную версию... (~30 сек)")
-    image_url = await generate_with_dalle(description)
+    await msg.edit_text("🎨 Генерирую фотореалистичную версию... (~30 сек)")
+    image_data = await generate_with_dalle(description)
     await msg.edit_text("✅ Готово!")
     await update.message.reply_photo(
-        photo=image_url,
+        photo=io.BytesIO(image_data),
         caption="🏠 Фотореалистичный рендер кухни готов!"
     )
  
@@ -126,7 +128,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 Привет! Отправь рендер кухни из Pro100.\n\n"
         "🔍 GPT-4o проанализирует планировку\n"
-        "🎨 DALL-E 3 создаст фотореалистичную версию\n\n"
+        "🎨 ИИ создаст фотореалистичную версию\n\n"
         "📤 Просто отправь фото — результат через ~40 секунд."
     )
  
